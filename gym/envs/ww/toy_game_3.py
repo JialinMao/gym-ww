@@ -2,8 +2,6 @@ import sys
 import math
 import string
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from scipy import ndimage
@@ -29,9 +27,9 @@ class ToyDiscreteEnv4(gym.Env):
         self.mean_pieces = mean_pieces
         self.min_pieces = min_pieces
         self.patch_size = patch_size
+        self.discrete = discrete
 
         self.k = k if k is not None else self.max_pieces*self.num_classes 
-        self.simple = simple
 
         self.n = board_size * board_size
         self.board = np.zeros((board_size, board_size, num_classes+1))
@@ -56,13 +54,12 @@ class ToyDiscreteEnv4(gym.Env):
     def _reset(self):
         self.prev_c = None
         self.pos = None
+        # simulating pi_0: choose a target class
+        # TODO may need to remove the class information
         self.target_class = self.np_random.choice(self.num_classes)
         self.num_pieces = np.ones(self.num_classes, dtype='int8') * self.min_pieces
-        # self.num_pieces = (3 * self.np_random.randn(self.num_classes)).astype('int8') + self.mean_pieces
-        self.num_pieces[self.target_class] = int(3 * self.np_random.randn()) + self.mean_pieces
-        self.num_pieces[self.target_class] = self.max_pieces  
-        self.num_pieces[self.num_pieces > self.max_pieces] = self.max_pieces
-        self.num_pieces[self.num_pieces < self.min_pieces] = self.min_pieces
+        self.num_pieces[self.target_class] = max(min(int(3 * self.np_random.randn()) + self.mean_pieces, self.max_pieces), self.min_pieces)
+        # self.num_pieces[self.target_class] = self.max_pieces  
 
         self.board *= 0
         self.board[:, :, 0] += 1
@@ -138,23 +135,17 @@ class ToyDiscreteEnv4(gym.Env):
         assert self.action_space.contains(a), "no actions"
         reward = 0
         done = False
-        '''
-        if (a == self.k and self.prev_c is not None):
-            return (self._get_top_k(from_reset=False), -1, False, [])
-        else: 
-            # action = self.top_k[a - 1][0]
-            idx = -1 if a == self.k else a
-            action = self.top_k[idx][0]
-         
-        if a == self.k:
+        
+        if (self.discrete and a == self.k) or ((not self.discrete) and np.sum(a) >= 1 - 0.1 / self.board_size):
             return (self._get_top_k(), -1, False, [])
         
-        action = self.top_k[a][0]
-        x = int(action // self.board_size)
-        y = int(action % self.board_size)
-        '''
-        x = int(self.top_k[a][0])
-        y = int(self.top_k[a][1])
+        
+        if self.discrete:
+            x = int(self.top_k[a][0])
+            y = int(self.top_k[a][1])
+        else:
+            x = int(a[0]*self.board_size)
+            y = int(a[1]*self.board_size)
 
         reward -= 0.2 * self._dist((x, y)) 
         self.pos = (x, y)
@@ -169,26 +160,14 @@ class ToyDiscreteEnv4(gym.Env):
             except KeyError:
                 pass
         else:
-            if self.simple:
-                self.counter[int(c-1)] += glimpse[c] 
-                mask = self.board[x_low:x_high, y_low:y_high, c] == 1
-                self.board[x_low:x_high, y_low:y_high][mask] = 0
-                self.board[x_low:x_high, y_low:y_high, 0][mask] = 1
-                for i in zip(np.tile(np.arange(x_low, x_high), 2), np.repeat(np.arange(y_low, y_high), 2)):
-                    self.picked[i] = 1
+            self.board[x, y, c] = 0
+            self.board[x, y, 0] = 1
+            self.counter[int(c-1)] += 1
+            self.picked[(x, y)] = 1
 
-            else:
-                self.board[x, y, c] = 0
-                self.board[x, y, 0] = 1
-                self.counter[int(c-1)] += 1
-                self.picked[(x, y)] = 1
-
-            # done = False if (c == self.prev_c if self.prev_c is not None else True) else True
-            # done = False if c == self.target_class + 1 else True
             reward += -50 if c != self.target_class + 1 else 1 
 
             if self.counter[int(c-1)] == self.num_pieces[int(c-1)]: # if the agent has seen every piece in this class
-                # reward += 10
                 self.prev_c = None
             else:
                 self.prev_c = c
@@ -196,10 +175,11 @@ class ToyDiscreteEnv4(gym.Env):
         if (self.counter[self.target_class] == self.num_pieces[self.target_class]):
             done = True
             reward += 100 
-
-        config = [] 
         
-        return (self._get_top_k(), reward, done, config) 
+        if ((not self.discrete) and np.sum(a) <= 0.1 / self.board_size):
+            done = True
+        
+        return (self._get_top_k(), reward, done, []) 
 
     def _dist(self, pos):
         if self.pos is None:
@@ -236,7 +216,6 @@ class ToyDiscreteEnv4(gym.Env):
         out += '---'*board_size
         out += '+\n'
         for i in range(board_size):
-            #out += str(i) + '  |'
             out += '   |'
             for j in range(board_size):
                 if (i, j) != self.pos:

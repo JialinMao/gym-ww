@@ -2,6 +2,7 @@ import logging
 import os, sys
 
 import gym
+import numpy as np
 
 # The world's simplest agent!
 class RandomAgent(object):
@@ -9,7 +10,8 @@ class RandomAgent(object):
         self.action_space = action_space
 
     def act(self, observation, reward, done):
-        return self.action_space.sample()
+        action = self.action_space.sample() 
+        return action / np.sum(action) 
 
 if __name__ == '__main__':
     # You can optionally set up the logger. Also fine to set the level
@@ -39,16 +41,17 @@ if __name__ == '__main__':
 
     for i in range(episode_count):
         ob = env.reset()
-
+        reward = 0
         for j in range(max_steps):
             action = agent.act(ob, reward, done)
-            ob, reward, done, _ = env.step(action)
+            ob, r, done, _ = env.step(action)
+            reward += r
             if done:
                 break
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
             # Video is not recorded every episode, see capped_cubic_video_schedule for details.
-
+        
     # Dump result info to disk
     env.monitor.close()
 

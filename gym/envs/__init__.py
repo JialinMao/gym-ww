@@ -479,29 +479,15 @@ register(
 
 register(
     id='Game-v0',
-    kwargs={'num_classes':3, 'board_size':12, 'max_pieces':9, 'mean_pieces':6, 'patch_size':5, 'simple':False, 'picked_info':True},
-    entry_point='gym.envs.ww:ToyDiscreteEnv',
-    timestep_limit=10000,
+    kwargs={'board_size':20, 'num_classes':2, 'max_pieces':16, 'mean_pieces':10, 'min_pieces':2, 'patch_size':4, 'k':6, 'discrete':False},
+    entry_point='gym.envs.ww:ToyContinuousEnv1',
+    timestep_limit=1000,
 )
 
 register(
     id='Game-v1',
-    kwargs={'num_classes':1, 'board_size':12, 'max_pieces':9, 'mean_pieces':6, 'patch_size':3, 'simple':False, 'picked_info':False},
-    entry_point='gym.envs.ww:ToyDiscreteEnv2',
-    timestep_limit=10000,
-
+    kwargs={'board_size':20, 'num_classes':2, 'max_pieces':16, 'mean_pieces':10, 'min_pieces':2, 'patch_size':4, 'k':6},
+    entry_point='gym.envs.ww:ToyContinuousEnv2',
+    timestep_limit=1000,
 )
 
-register(
-    id='Game-v2',
-    kwargs={'num_classes':1, 'obj_mode':None, 'patch_size':4},
-    entry_point='gym.envs.ww:ToyDiscreteEnv4',
-    timestep_limit=10000,
-)
-
-register(
-    id='Game-v3',
-    kwargs={'num_classes':2, 'patch_size':4, 'k':4, 'action_size':5},
-    entry_point='gym.envs.ww:ToyDiscreteEnv5',
-    timestep_limit=10000,
-)
